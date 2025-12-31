@@ -32,7 +32,7 @@ public class CocoViewer extends Application {
     
     // For storing COCO dataset information
     private Map<String, List<ImageInfo>> imageInfos = new HashMap<>();
-    private CocoAnnotationParser annotationParser;
+    private Map<String, CocoAnnotationParser> annotationParsers = new HashMap<>();
     
     @Override
     public void start(Stage primaryStage) {
@@ -160,20 +160,19 @@ public class CocoViewer extends Application {
     }
     
     private void loadCocoAnnotations(File rootDir) {
-        // Look for COCO annotation files in the root directory
-        File[] annotationFiles = rootDir.listFiles(f -> 
-            f.getName().toLowerCase().endsWith(".json") && 
-            (f.getName().toLowerCase().contains("instances") || 
-             f.getName().toLowerCase().contains("captions") || 
-             f.getName().toLowerCase().contains("person_keypoints"))
-        );
-        
-        if (annotationFiles != null && annotationFiles.length > 0) {
-            try {
-                // Use the first annotation file found
-                annotationParser = new CocoAnnotationParser(annotationFiles[0].getAbsolutePath());
-            } catch (IOException e) {
-                System.err.println("Error loading COCO annotations: " + e.getMessage());
+        // Look for _annotations.coco.json in each subdirectory
+        File[] subdirs = rootDir.listFiles(File::isDirectory);
+        if (subdirs != null) {
+            for (File subdir : subdirs) {
+                File annotationFile = new File(subdir, "_annotations.coco.json");
+                if (annotationFile.exists() && annotationFile.isFile()) {
+                    try {
+                        CocoAnnotationParser parser = new CocoAnnotationParser(annotationFile.getAbsolutePath());
+                        annotationParsers.put(subdir.getName(), parser);
+                    } catch (IOException e) {
+                        System.err.println("Error loading COCO annotations from " + annotationFile.getAbsolutePath() + ": " + e.getMessage());
+                    }
+                }
             }
         }
     }
@@ -200,14 +199,21 @@ public class CocoViewer extends Application {
     }
     
     private String findImageIdByName(String imageName) {
-        if (annotationParser != null) {
-            // In a complete implementation, we would match the image name to the annotations
-            // For now, we'll just return a placeholder
-            List<CocoAnnotationParser.Category> categories = annotationParser.getAllCategories();
-            if (!categories.isEmpty()) {
-                // This is a simplified approach - in a real implementation, 
-                // we would need to match the image name to the image ID in the annotations
-                return imageName; // Placeholder
+        // Since we have multiple annotation parsers per directory, 
+        // we need to check in the currently selected directory context
+        TreeItem<String> selectedDirItem = directoryTree.getSelectionModel().getSelectedItem();
+        if (selectedDirItem != null) {
+            String directoryName = selectedDirItem.getValue();
+            CocoAnnotationParser parser = annotationParsers.get(directoryName);
+            if (parser != null) {
+                // In a complete implementation, we would match the image name to the annotations
+                // For now, we'll just return a placeholder
+                List<CocoAnnotationParser.Category> categories = parser.getAllCategories();
+                if (!categories.isEmpty()) {
+                    // This is a simplified approach - in a real implementation, 
+                    // we would need to match the image name to the image ID in the annotations
+                    return imageName; // Placeholder
+                }
             }
         }
         return imageName; // Placeholder
@@ -279,16 +285,24 @@ public class CocoViewer extends Application {
         try {
             Image image = new Image(imageInfo.file.toURI().toString());
             
-            if (annotationParser != null) {
+            // Get the annotation parser for the current directory
+            TreeItem<String> selectedDirItem = directoryTree.getSelectionModel().getSelectedItem();
+            CocoAnnotationParser parser = null;
+            if (selectedDirItem != null) {
+                String directoryName = selectedDirItem.getValue();
+                parser = annotationParsers.get(directoryName);
+            }
+            
+            if (parser != null) {
                 // Visualize the image with annotations if available
-                StackPane annotatedImage = annotationParser.visualizeAnnotations(image, imageInfo.imageId);
+                StackPane annotatedImage = parser.visualizeAnnotations(image, imageInfo.imageId);
                 
                 // For now, just display the original image in the ImageView
                 // In a complete implementation, we'd display the annotated image
                 imageView.setImage(image);
                 
                 // Show annotation information
-                List<CocoAnnotationParser.Annotation> annotations = annotationParser.getAnnotationsForImage(imageInfo.imageId);
+                List<CocoAnnotationParser.Annotation> annotations = parser.getAnnotationsForImage(imageInfo.imageId);
                 StringBuilder annotationText = new StringBuilder();
                 annotationText.append("Image: ").append(imageInfo.file.getName()).append("\n");
                 annotationText.append("Path: ").append(imageInfo.file.getAbsolutePath()).append("\n");
@@ -314,7 +328,7 @@ public class CocoViewer extends Application {
                 annotationArea.setText("Image: " + imageInfo.file.getName() + 
                                       "\nPath: " + imageInfo.file.getAbsolutePath() +
                                       "\nSize: " + (int)image.getWidth() + " x " + (int)image.getHeight() +
-                                      "\n\nNo annotation file found in the dataset directory.");
+                                      "\n\nNo _annotations.coco.json file found in the selected directory.");
             }
         } catch (Exception e) {
             annotationArea.setText("Error loading image: " + e.getMessage());
