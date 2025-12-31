@@ -29,6 +29,7 @@ public class CocoViewer extends Application {
     private TextArea annotationArea;
     private TextField searchField;
     private File selectedDirectory;
+    private ScrollPane imageScrollPane;
     
     // For storing COCO dataset information
     private Map<String, List<ImageInfo>> imageInfos = new HashMap<>();
@@ -116,11 +117,11 @@ public class CocoViewer extends Application {
         annotationArea.setPrefHeight(200);
         annotationArea.setEditable(false);
         
-        ScrollPane scrollPane = new ScrollPane(imageView);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
+        imageScrollPane = new ScrollPane(imageView);
+        imageScrollPane.setFitToWidth(true);
+        imageScrollPane.setFitToHeight(true);
         
-        rightPane.getChildren().addAll(scrollPane, annotationArea);
+        rightPane.getChildren().addAll(imageScrollPane, annotationArea);
         
         return rightPane;
     }
@@ -190,7 +191,7 @@ public class CocoViewer extends Application {
             for (File imageFile : imageFiles) {
                 // Try to find the corresponding image ID in the annotations
                 String imageName = imageFile.getName();
-                String imageId = findImageIdByName(imageName);
+                String imageId = findImageIdByName(imageName, dirName);
                 images.add(new ImageInfo(imageFile, imageId));
             }
         }
@@ -198,25 +199,26 @@ public class CocoViewer extends Application {
         imageInfos.put(dirName, images);
     }
     
-    private String findImageIdByName(String imageName) {
-        // Since we have multiple annotation parsers per directory, 
-        // we need to check in the currently selected directory context
-        TreeItem<String> selectedDirItem = directoryTree.getSelectionModel().getSelectedItem();
-        if (selectedDirItem != null) {
-            String directoryName = selectedDirItem.getValue();
-            CocoAnnotationParser parser = annotationParsers.get(directoryName);
-            if (parser != null) {
-                // In a complete implementation, we would match the image name to the annotations
-                // For now, we'll just return a placeholder
-                List<CocoAnnotationParser.Category> categories = parser.getAllCategories();
-                if (!categories.isEmpty()) {
-                    // This is a simplified approach - in a real implementation, 
-                    // we would need to match the image name to the image ID in the annotations
-                    return imageName; // Placeholder
+    private String findImageIdByName(String imageName, String directoryName) {
+        // Get the annotation parser for the specific directory
+        CocoAnnotationParser parser = annotationParsers.get(directoryName);
+        if (parser != null) {
+            // Get all images from the COCO annotation file to find the matching ID
+            JsonObject cocoData = parser.getCocoData(); // Need to add this method to CocoAnnotationParser
+            if (cocoData != null) {
+                JsonArray images = cocoData.getAsJsonArray("images");
+                if (images != null) {
+                    for (JsonElement imageElement : images) {
+                        JsonObject imageObj = imageElement.getAsJsonObject();
+                        String fileName = imageObj.get("file_name").getAsString();
+                        if (fileName.equals(imageName)) {
+                            return imageObj.get("id").getAsString();
+                        }
+                    }
                 }
             }
         }
-        return imageName; // Placeholder
+        return imageName; // Return the filename if no matching ID is found
     }
     
     private void handleDirectorySelection(String directoryName) {
@@ -294,13 +296,6 @@ public class CocoViewer extends Application {
             }
             
             if (parser != null) {
-                // Visualize the image with annotations if available
-                StackPane annotatedImage = parser.visualizeAnnotations(image, imageInfo.imageId);
-                
-                // For now, just display the original image in the ImageView
-                // In a complete implementation, we'd display the annotated image
-                imageView.setImage(image);
-                
                 // Show annotation information
                 List<CocoAnnotationParser.Annotation> annotations = parser.getAnnotationsForImage(imageInfo.imageId);
                 StringBuilder annotationText = new StringBuilder();
@@ -322,8 +317,15 @@ public class CocoViewer extends Application {
                 }
                 
                 annotationArea.setText(annotationText.toString());
+                
+                // Visualize the image with annotations if available
+                StackPane annotatedImage = parser.visualizeAnnotations(image, imageInfo.imageId);
+                
+                // Update the scroll pane to show the annotated image
+                imageScrollPane.setContent(annotatedImage);
             } else {
                 // No annotations available
+                imageScrollPane.setContent(imageView);
                 imageView.setImage(image);
                 annotationArea.setText("Image: " + imageInfo.file.getName() + 
                                       "\nPath: " + imageInfo.file.getAbsolutePath() +
