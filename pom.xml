@@ -6,14 +6,14 @@
     <version>0.1</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>24</maven.compiler.source>
+        <maven.compiler.target>24</maven.compiler.target>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>17.0.2</version>
+            <version>24</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -28,7 +28,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.0</version>
                 <configuration>
-                    <release>17</release>
+                    <release>24</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -41,7 +41,7 @@
                         <!-- Usage: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>CocoViewer</mainClass>
+                            <mainClass>org.sj.CocoViewer</mainClass>
                         </configuration>
                     </execution>
                 </executions>

@@ -57,8 +57,8 @@ java -jar target/coco-viewer-0.1.jar
 
 ## Project Structure
 
-- `CocoViewer.java` - Main JavaFX application class
-- `CocoAnnotationParser.java` - Handles parsing and visualization of COCO annotations
+- `org.sj.CocoViewer.java` - Main JavaFX application class
+- `org.sj.CocoAnnotationParser.java` - Handles parsing and visualization of COCO annotations
 - `pom.xml` - Maven configuration file with dependencies
 
 ## COCO Dataset Format
