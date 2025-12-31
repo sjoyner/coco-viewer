@@ -113,6 +113,10 @@ public class CocoAnnotationParser {
         }
     }
     
+    public JsonObject getCocoData() {
+        return cocoData;
+    }
+    
     public List<Annotation> getAnnotationsForImage(String imageId) {
         return annotationsByImage.getOrDefault(imageId, new ArrayList<>());
     }
